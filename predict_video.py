@@ -16,7 +16,7 @@ with open("label_bin", "rb") as fp:
 mean = np.array([123.68, 116.779, 103.939][::1], dtype="float32")
 Q = deque(maxlen=size)
 
-vs = cv2.VideoCapture("data//soccer.mp4")
+vs = cv2.VideoCapture("data//soccer//soccer.mp4")
 writer = None
 (W, H) = (None, None)
  

@@ -1,4 +1,5 @@
 import matplotlib
+from numpy.core.fromnumeric import shape
 matplotlib.use("Agg")
 
 from keras.preprocessing.image import ImageDataGenerator
@@ -26,75 +27,6 @@ img_rows,img_cols,img_depth=16,16,15
 
 X_tr=[] 
 
-'''
-listing = os.listdir('data/lifting')
-
-for vid in listing:
-    vid = 'data/lifting/'+vid
-    frames = []
-    cap = cv2.VideoCapture(vid)
-    fps = cap.get(5)
-    print("Frames per second using video.get(cv2.cv.CV_CAP_PROP_FPS): {0}".format(fps))
- 
-
-    for k in range(15):
-        ret, frame = cap.read()
-        frame=cv2.resize(frame,(img_rows,img_cols),interpolation=cv2.INTER_AREA)
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        frames.append(gray)
-
-        #plt.imshow(gray, cmap = plt.get_cmap('gray'))
-        #plt.xticks([]), plt.yticks([])  # to hide tick values on X and Y axis
-        #plt.show()
-        #cv2.imshow('frame',gray)
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-    cap.release()
-    cv2.destroyAllWindows()
-
-    input=np.array(frames)
-
-    print(input.shape)
-    ipt=np.rollaxis(np.rollaxis(input,2,0),2,0)
-    print(ipt.shape)
-
-    X_tr.append(ipt)
-
-listing = os.listdir('data/soccer')
-
-for vid in listing:
-    vid = 'data/soccer/'+vid
-    frames = []
-    cap = cv2.VideoCapture(vid)
-    fps = cap.get(5)
-    print("Frames per second using video.get(cv2.cv.CV_CAP_PROP_FPS): {0}".format(fps))
- 
-
-    for k in range(15):
-        ret, frame = cap.read()
-        frame=cv2.resize(frame,(img_rows,img_cols),interpolation=cv2.INTER_AREA)
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        frames.append(gray)
-
-        #plt.imshow(gray, cmap = plt.get_cmap('gray'))
-        #plt.xticks([]), plt.yticks([])  # to hide tick values on X and Y axis
-        #plt.show()
-        #cv2.imshow('frame',gray)
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-    cap.release()
-    cv2.destroyAllWindows()
-
-    input=np.array(frames)
-
-    print(input.shape)
-    ipt=np.rollaxis(np.rollaxis(input,2,0),2,0)
-    print(ipt.shape)
-
-    X_tr.append(ipt)'''
-
 data = os.listdir('data')
 for data_type in data:
     listing = os.listdir('data/'+data_type)
@@ -108,7 +40,7 @@ for data_type in data:
         for k in range(15):
             ret, frame = cap.read()
             frame=cv2.resize(frame,(img_rows,img_cols),interpolation=cv2.INTER_AREA)
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frames.append(gray)
 
             #plt.imshow(gray, cmap = plt.get_cmap('gray'))
@@ -124,7 +56,8 @@ for data_type in data:
         input=np.array(frames)
 
         print(input.shape)
-        ipt=np.rollaxis(np.rollaxis(input,2,0),2,0)
+        ipt= np.rollaxis(np.rollaxis(input,2,0),2,0)
+        ipt = np.rollaxis(ipt,3,0)
         print(ipt.shape)
 
         X_tr.append(ipt)
@@ -135,30 +68,29 @@ num_samples = len(X_tr_array)
 print(num_samples)
 
 label=np.ones((num_samples,),dtype = int)
-label[0:15]= 0
-label[15:30] = 1
-label[30:45] = 2
+label[0:1]= 0
+label[1:2] = 1
+label[2:3] = 2
 
 train_data = [X_tr_array,label]
 
 (X_train, y_train) = (train_data[0],train_data[1])
 print('X_Train shape:', X_train.shape)
-
-train_set = np.zeros((num_samples, 1, img_rows,img_cols,img_depth))
-
-for h in range(num_samples):
-    train_set[h][0][:][:][:]=X_train[h,:,:,:]
+#print(y_train)
+#X_Train shape: (3, 16, 16, 15) (3, 3, 16, 16, 15)
+#(3, 1, 16, 16, 15) train samples
+train_set = X_train
  
-
 patch_size = 15    # img_depth or number of frames used for each video
 
 print(train_set.shape, 'train samples')
 
 batch_size = 1
 nb_classes = 3
-nb_epoch = 2
+nb_epoch = 5
 
 Y_train = np_utils.to_categorical(y_train, nb_classes)
+print(Y_train)
 
 # number of convolutional filters to use at each layer
 nb_filters = [32, 32]
@@ -181,7 +113,7 @@ train_set /=np.max(train_set)
 # Define model
 
 model = Sequential()
-model.add(Convolution3D(nb_filters[0], kernel_dim1=nb_conv[0], kernel_dim2=nb_conv[0], kernel_dim3=nb_conv[0],input_shape=(1, img_rows, img_cols, img_depth), activation='relu'))
+model.add(Convolution3D(nb_filters[0], kernel_dim1=nb_conv[0], kernel_dim2=nb_conv[0], kernel_dim3=nb_conv[0],input_shape=(3, img_rows, img_cols, img_depth), activation='relu'))
 
 model.add(MaxPooling3D(pool_size=(nb_pool[0], nb_pool[0], nb_pool[0])))
 
@@ -204,7 +136,10 @@ model.compile(loss='categorical_crossentropy', optimizer='RMSprop', metrics=['ac
 
 X_train_new, X_val_new, y_train_new,y_val_new =  train_test_split(train_set, Y_train, test_size=0.2, random_state=4)
 
-
+print(X_val_new.shape)
+print(y_val_new)
+print(X_train_new.shape)
+print(y_train_new)
 # Train the model
 
 H = model.fit(X_train_new, y_train_new, validation_data=(X_val_new,y_val_new),
@@ -235,7 +170,7 @@ plt.legend(loc="lower left")
 plt.savefig("plot.png")
 
 print("[INFO] serializing network...")
-model.save("model.onnx")
+model.save("model")
  
 
 
