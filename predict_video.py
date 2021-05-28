@@ -6,55 +6,55 @@ import numpy as np
 import pickle
 import cv2
  
-size = 128
-print("[INFO] loading model and label binarizer...")
+print("[INFO] loading model")
 model = load_model("model")
-#lb = pickle.loads(open("label_bin", "rb").read())
-with open("label_bin", "rb") as fp:
-    lb = pickle.load(fp)
-#print(lb.classes_)
-mean = np.array([123.68, 116.779, 103.939][::1], dtype="float32")
-Q = deque(maxlen=size)
+CLASSES = open("action_label.txt").read().strip().split("\n")
 
-vs = cv2.VideoCapture("data//soccer//soccer.mp4")
+#mean = np.array([123.68, 116.779, 103.939][::1], dtype="float32")
+
 writer = None
 (W, H) = (None, None)
- 
+cap = cv2.VideoCapture("data//tennis//tennis.mp4")
+fps = cap.get(5)
+print("Frames per second using video.get(cv2.cv.CV_CAP_PROP_FPS): {0}".format(fps))
+img_rows,img_cols,img_depth=224,224,120
+frames = []
+
+for k in range(120):
+    ret, frame = cap.read()
+    frame=cv2.resize(frame,(img_rows,img_cols),interpolation=cv2.INTER_AREA)
+    color = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    frames.append(color)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
+
+input=np.array(frames)
+
+print(input.shape)
+ipt= np.rollaxis(np.rollaxis(input,2,0),2,0)
+ipt = np.rollaxis(ipt,3,0)
+print(ipt.shape)
+
+prediction = model.predict(np.expand_dims(ipt, axis=0))[0]
+label = CLASSES[np.argmax(prediction)]
+print(label)
+
+# loop over our frames
 while True:
-	(grabbed, frame) = vs.read()
+    for frame in frames:
+        # draw the predicted activity on the frame
+        cv2.rectangle(frame, (0, 0), (300, 40), (0, 0, 0), -1)
+        cv2.putText(frame, label, (10, 25), cv2.FONT_HERSHEY_SIMPLEX,0.8, (255, 255, 255), 2)
 
-	if not grabbed:
-		break
-	if W is None or H is None:
-		(H, W) = frame.shape[:2]
+        # display the frame to our screen
+        cv2.imshow("Activity Recognition", frame)
+        key = cv2.waitKey(1) & 0xFF
 
-	output = frame.copy()
-	frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-	frame = cv2.resize(frame, (16, 16)).astype("float32")
-	#frame -= mean
+        # if the `q` key was pressed, break from the loop
+        if key == ord("q"):
+            break
 
-	preds = model.predict(np.expand_dims(frame, axis=0))[0]
-	Q.append(preds)
-
-	results = np.array(Q).mean(axis=0)
-	i = np.argmax(results)
-	label = lb[i]
-
-	text = "activity: {}".format(label)
-	cv2.putText(output, text, (35, 50), cv2.FONT_HERSHEY_SIMPLEX,
-		1.25, (0, 255, 0), 5)
-
-	if writer is None:
-		fourcc = cv2.VideoWriter_fourcc(*"MJPG")
-		writer = cv2.VideoWriter("output", fourcc, 30,
-			(W, H), True)
-
-	writer.write(output)
-
-	cv2.imshow("output", output)
-	key = cv2.waitKey(1) & 0xFF
-
-	if key == ord("q"):
-		break
-
-cv2.destroyAllWindows() 

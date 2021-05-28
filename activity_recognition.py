@@ -23,7 +23,7 @@ from sklearn.model_selection import train_test_split
 #from sklearn import cross_validation
 from sklearn import preprocessing
 
-img_rows,img_cols,img_depth=16,16,15
+img_rows,img_cols,img_depth=224,224,120
 
 X_tr=[] 
 
@@ -37,7 +37,7 @@ for data_type in data:
         fps = cap.get(5)
         print("Frames per second using video.get(cv2.cv.CV_CAP_PROP_FPS): {0}".format(fps))
  
-        for k in range(15):
+        for k in range(120):
             ret, frame = cap.read()
             frame=cv2.resize(frame,(img_rows,img_cols),interpolation=cv2.INTER_AREA)
             color = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -90,7 +90,6 @@ nb_classes = 3
 nb_epoch = 5
 
 Y_train = np_utils.to_categorical(y_train, nb_classes)
-print(Y_train)
 
 # number of convolutional filters to use at each layer
 nb_filters = [32, 32]
@@ -136,10 +135,10 @@ model.compile(loss='categorical_crossentropy', optimizer='RMSprop', metrics=['ac
 
 X_train_new, X_val_new, y_train_new,y_val_new =  train_test_split(train_set, Y_train, test_size=0.2, random_state=4)
 
-print(X_val_new.shape)
-print(y_val_new)
-print(X_train_new.shape)
-print(y_train_new)
+#print(X_val_new.shape)
+#print(y_val_new)
+#print(X_train_new.shape)
+#print(y_train_new)
 # Train the model
 
 H = model.fit(X_train_new, y_train_new, validation_data=(X_val_new,y_val_new),
@@ -171,7 +170,7 @@ plt.savefig("plot.png")
 
 print("[INFO] serializing network...")
 model.save("model")
- 
+
 
 
 
