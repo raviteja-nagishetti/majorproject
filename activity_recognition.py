@@ -40,8 +40,8 @@ for data_type in data:
         for k in range(15):
             ret, frame = cap.read()
             frame=cv2.resize(frame,(img_rows,img_cols),interpolation=cv2.INTER_AREA)
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frames.append(gray)
+            color = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frames.append(color)
 
             #plt.imshow(gray, cmap = plt.get_cmap('gray'))
             #plt.xticks([]), plt.yticks([])  # to hide tick values on X and Y axis
