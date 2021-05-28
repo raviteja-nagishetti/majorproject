@@ -1,17 +1,23 @@
 import matplotlib
 from numpy.core.fromnumeric import shape
 matplotlib.use("Agg")
+from keras.utils import np_utils
+from keras.layers import Conv3D, MaxPool3D, Flatten, Dense
+from keras.layers import Dropout, Input, BatchNormalization
 
 from keras.preprocessing.image import ImageDataGenerator
-from keras.models import Sequential
+from keras.models import Sequential, Model
 from keras.layers.core import Dense, Dropout, Activation, Flatten
 from keras.layers.convolutional import Convolution3D, MaxPooling3D
 
 from keras.optimizers import SGD, RMSprop
 from keras.utils import np_utils, generic_utils
 
+from tensorflow import keras
+from tensorflow.keras import layers
+
 from keras import backend as K
-K.set_image_data_format('channels_first')
+#K.set_image_data_format('channels_first')
 
 import theano
 import os
@@ -23,7 +29,7 @@ from sklearn.model_selection import train_test_split
 #from sklearn import cross_validation
 from sklearn import preprocessing
 
-img_rows,img_cols,img_depth=224,224,120
+img_rows,img_cols,img_depth=128,128,64
 
 X_tr=[] 
 
@@ -37,10 +43,10 @@ for data_type in data:
         fps = cap.get(5)
         print("Frames per second using video.get(cv2.cv.CV_CAP_PROP_FPS): {0}".format(fps))
  
-        for k in range(120):
+        for k in range(64):
             ret, frame = cap.read()
             frame=cv2.resize(frame,(img_rows,img_cols),interpolation=cv2.INTER_AREA)
-            color = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            color = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             frames.append(color)
 
             #plt.imshow(gray, cmap = plt.get_cmap('gray'))
@@ -57,7 +63,7 @@ for data_type in data:
 
         print(input.shape)
         ipt= np.rollaxis(np.rollaxis(input,2,0),2,0)
-        ipt = np.rollaxis(ipt,3,0)
+        #ipt = np.rollaxis(ipt,3,0)
         print(ipt.shape)
 
         X_tr.append(ipt)
@@ -77,17 +83,22 @@ train_data = [X_tr_array,label]
 (X_train, y_train) = (train_data[0],train_data[1])
 print('X_Train shape:', X_train.shape)
 #print(y_train)
-#X_Train shape: (3, 16, 16, 15) (3, 3, 16, 16, 15)
-#(3, 1, 16, 16, 15) train samples
-train_set = X_train
+
+train_set = np.zeros((num_samples, img_rows, img_cols, img_depth, 1))
+
+for h in range(num_samples):
+    for i in range(128):
+        for j in range(128):
+            for k in range(64):
+                train_set[h][i][j][k][0] = X_train[h][i][j][k]
  
-patch_size = 15    # img_depth or number of frames used for each video
+patch_size = 64    # img_depth or number of frames used for each video
 
 print(train_set.shape, 'train samples')
 
 batch_size = 1
 nb_classes = 3
-nb_epoch = 5
+nb_epoch = 2
 
 Y_train = np_utils.to_categorical(y_train, nb_classes)
 
@@ -109,26 +120,48 @@ train_set -= np.mean(train_set)
 train_set /=np.max(train_set)
 
 
-# Define model
+def get_model(width=128, height=128, depth=64):
+    """Build a 3D convolutional neural network model."""
 
-model = Sequential()
-model.add(Convolution3D(nb_filters[0], kernel_dim1=nb_conv[0], kernel_dim2=nb_conv[0], kernel_dim3=nb_conv[0],input_shape=(3, img_rows, img_cols, img_depth), activation='relu'))
+    input_layer = Input((128, 128, 64, 1))
+    
+    conv_layer1 = Conv3D(filters=64, kernel_size=(3, 3, 3), activation='relu')(input_layer)
+    pooling_layer1 = MaxPool3D(pool_size=(2, 2, 2))(conv_layer1)
 
-model.add(MaxPooling3D(pool_size=(nb_pool[0], nb_pool[0], nb_pool[0])))
+    pooling_layer1 = BatchNormalization()(pooling_layer1)  
+    conv_layer2 = Conv3D(filters=64, kernel_size=(3, 3, 3), activation='relu')(pooling_layer1)
+    pooling_layer2 = MaxPool3D(pool_size=(2, 2, 2))(conv_layer2)
+    pooling_layer2 = BatchNormalization()(pooling_layer2)
+    conv_layer3 = Conv3D(filters=64, kernel_size=(3, 3, 3), activation='relu')(pooling_layer1)
+    pooling_layer3 = MaxPool3D(pool_size=(2, 2, 2))(conv_layer3)
+    pooling_layer3 = BatchNormalization()(pooling_layer3)
+    conv_layer4 = Conv3D(filters=128, kernel_size=(3, 3, 3), activation='relu')(pooling_layer3)
+    pooling_layer4 = MaxPool3D(pool_size=(2, 2, 2))(conv_layer4)
+    pooling_layer4 = BatchNormalization()(pooling_layer4)
+    conv_layer5 = Conv3D(filters=256, kernel_size=(3, 3, 3), activation='relu')(pooling_layer4)
+    pooling_layer5 = MaxPool3D(pool_size=(2, 2, 2))(conv_layer5)
+    
+    pooling_layer9 = BatchNormalization()(pooling_layer5)
+    flatten_layer = Flatten()(pooling_layer9)
+    
+    dense_layer3 = Dense(units=512, activation='relu')(flatten_layer)
+    dense_layer3 = Dropout(0.4)(dense_layer3)
 
-model.add(Dropout(0.5))
+    dense_layer4 = Dense(units=256, activation='relu')(dense_layer3)
+    dense_layer4 = Dropout(0.4)(dense_layer3)
+  
+    output_layer = Dense(units=num_samples, activation='softmax')(dense_layer4)
 
-model.add(Flatten())
+    model = Model(inputs=input_layer, outputs=output_layer)
 
-model.add(Dense(128, init='normal', activation='relu'))
+    model.compile(loss='mae', optimizer=SGD(lr=1e-06, momentum=0.99, decay=0.0, nesterov=False), metrics=['acc']) 
+    
+    return model
 
-model.add(Dropout(0.5))
-
-model.add(Dense(nb_classes,init='normal'))
-
-model.add(Activation('softmax'))
-
-model.compile(loss='categorical_crossentropy', optimizer='RMSprop', metrics=['acc'])
+# Build model.
+model = None
+model = get_model()
+model.summary()
 
 
 # Split the data

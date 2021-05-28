@@ -14,16 +14,16 @@ CLASSES = open("action_label.txt").read().strip().split("\n")
 
 writer = None
 (W, H) = (None, None)
-cap = cv2.VideoCapture("data//tennis//tennis.mp4")
+cap = cv2.VideoCapture("data//soccer//soccer.mp4")
 fps = cap.get(5)
 print("Frames per second using video.get(cv2.cv.CV_CAP_PROP_FPS): {0}".format(fps))
-img_rows,img_cols,img_depth=224,224,120
+img_rows,img_cols,img_depth=128,128,64
 frames = []
 
-for k in range(120):
+for k in range(64):
     ret, frame = cap.read()
     frame=cv2.resize(frame,(img_rows,img_cols),interpolation=cv2.INTER_AREA)
-    color = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    color = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     frames.append(color)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -34,12 +34,21 @@ cv2.destroyAllWindows()
 
 input=np.array(frames)
 
-print(input.shape)
+#print(input.shape)
+X_tr = []
 ipt= np.rollaxis(np.rollaxis(input,2,0),2,0)
-ipt = np.rollaxis(ipt,3,0)
-print(ipt.shape)
+X_tr.append(ipt)
 
-prediction = model.predict(np.expand_dims(ipt, axis=0))[0]
+test = np.zeros((img_rows, img_cols, img_depth, 1))
+print(test.shape)
+
+for i in range(128):
+    for j in range(128):
+        for k in range(64):
+            test[i][j][k][0] = X_tr[0][i][j][k]
+
+#(128, 128, 64, 1)
+prediction = model.predict(np.expand_dims(test, axis=0))[0]
 label = CLASSES[np.argmax(prediction)]
 print(label)
 
